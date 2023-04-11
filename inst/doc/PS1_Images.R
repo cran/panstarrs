@@ -6,24 +6,32 @@ knitr::opts_chunk$set(
 
 ## ----setup--------------------------------------------------------------------
 library(panstarrs)
-library(magrittr)
 library(magick)
-library(FITSio)
-library(celestial)
-library(magicaxis)
 
 ## -----------------------------------------------------------------------------
+coords_antennae <- ps1_mast_resolve('Antennae')
 
-ps1_image_color(ra = 180.4721, dec = -18.87694, format = 'png', size = 600) %>%
-  magick::image_read() %>% 
+ps1_image_color(
+  coords_antennae$ra, 
+  coords_antennae$dec, 
+  format = 'png', 
+  size = 600
+) |> 
+  magick::image_read() |> 
   magick::image_resize("400x400")
 
 ## -----------------------------------------------------------------------------
-coords <- ps1_mast_resolve('KQ Uma')
-coords
+coords_uma <- ps1_mast_resolve('KQ Uma')
+coords_uma
 
 ## -----------------------------------------------------------------------------
-img_url <- ps1_image_url(ra=coords$ra, dec=coords$dec, size = 1280, filter = "r", format = "fits")
+img_url <- ps1_image_url(
+  coords_uma$ra, 
+  coords_uma$dec, 
+  size = 1280, 
+  filter = "r", 
+  format = "fits"
+)
 fits_obj <- FITSio::readFITS(img_url)
 
 ## -----------------------------------------------------------------------------
@@ -35,17 +43,17 @@ fix_header <- function(header) {
   if (is_header_ok) {
     return(header)
   } else {
-    PC001001 <- header[which(header == "PC001001") + 1] %>% as.numeric()
-    CDELT1 <- header[which(header == "CDELT1") + 1] %>% as.numeric()
-    CD1_1 <- (PC001001 * CDELT1) %>% sprintf(fmt = "%.14e", .)
+    PC001001 <- header[which(header == "PC001001") + 1] |> as.numeric()
+    CDELT1 <- header[which(header == "CDELT1") + 1] |>as.numeric()
+    CD1_1 <- (PC001001 * CDELT1) |> sprintf(fmt = "%.14e")
 
 
     CD1_2 <- "0"
     CD2_1 <- "0"
 
-    PC002002 <- header[which(header == "PC002002") + 1] %>% as.numeric()
-    CDELT2 <- header[which(header == "CDELT2") + 1] %>% as.numeric()
-    CD2_2 <- (PC002002 * CDELT2) %>% sprintf(fmt = "%.14e", .)
+    PC002002 <- header[which(header == "PC002002") + 1] |> as.numeric()
+    CDELT2 <- header[which(header == "CDELT2") + 1] |> as.numeric()
+    CD2_2 <- (PC002002 * CDELT2) |> sprintf(fmt = "%.14e")
 
     start_i <- which(header == "CDELT1") - 1
     end_i <- length(header)
@@ -69,10 +77,10 @@ fix_header <- function(header) {
 oma_old <- par('oma')
 mar_old <- par('mar')
 par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))
-# Convert source coords from (RA, DEC) to image coords (X,Y)
+# Convert source coords_uma from (RA, DEC) to image coords (X,Y)
 src <- celestial::radec2xy(
-    RA = coords$ra,
-    Dec = coords$dec,
+    RA = coords_uma$ra,
+    Dec = coords_uma$dec,
     header = fix_header(fits_obj$hdr)
   )
 
@@ -111,7 +119,5 @@ arrows(x0 = src[1],
 text(x = ncol(fits_obj$imDat)/2,
        y = nrow(fits_obj$imDat)-50,
        label = 'KQ Uma')
-
-## -----------------------------------------------------------------------------
 par(oma = oma_old, mar = mar_old)
 

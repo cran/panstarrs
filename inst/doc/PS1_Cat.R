@@ -7,33 +7,25 @@ knitr::opts_chunk$set(
 ## ----setup--------------------------------------------------------------------
 library(panstarrs)
 library(dplyr)
-library(magrittr)
+library(data.table)
 
 ## -----------------------------------------------------------------------------
 coords <- ps1_mast_resolve('KQ Uma')
 coords
 
 ## -----------------------------------------------------------------------------
-df_cone <- ps1_cone(ra = coords$ra, 
-               dec = coords$decl,
-               r_arcmin = 0.01,
-               table = 'mean',
-               release = 'dr2')
-df_cone %>% select(matches('[grizy]MeanPSFMag$'))
+df_cone <- ps1_cone(
+  coords$ra, 
+  coords$decl,
+  r_arcmin = 0.01, 
+  table = 'mean',
+  release = 'dr2'
+)
 
-## -----------------------------------------------------------------------------
-df_cross <- ps1_crossmatch(ra = coords$ra, 
-               dec = coords$decl,
-               r_arcmin = 0.01,
-               table = 'mean',
-               release = 'dr2')
-df_cross %>% select(matches('[grizy]MeanPSFMag$'))
+# tidyverse approach
+df_cone |>
+  dplyr::select(dplyr::matches('[grizy]MeanPSFMag$'))
 
-## -----------------------------------------------------------------------------
-ps1_crossmatch(ra = c(268.70342, 168.87258), 
-              dec = c(71.54292, 60.75153),
-              table= 'mean',
-              release = 'dr2') %>% 
-  arrange(`_searchID_`, dstArcSec) %>% 
-  select(1:4,7)
+# or if you prefer data.table approach
+df_cone[, .SD, .SDcols = grepl('[grizy]MeanPSFMag$', names(df_cone))]
 

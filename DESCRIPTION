@@ -1,8 +1,9 @@
 Package: panstarrs
 Title: Interface to the Pan-STARRS API
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: 
-    person("Grigory", "Uskov", , "uskov.russia@gmail.com", role = c("cre", "aut"))
+    person("Grigory", "Uskov", , "uskov.russia@gmail.com", role = c("cre", "aut"),
+           comment = c(ORCID = "0000-0002-0274-1350"))
 Description: An interface to the API for 'Pan-STARRS1', a data archive of
     the PS1 wide-field astronomical survey.  The package allows access to
     the PS1 catalog and to the PS1 images.  (see
@@ -13,15 +14,17 @@ Description: An interface to the API for 'Pan-STARRS1', a data archive of
 License: MIT + file LICENSE
 URL: https://uskovgs.github.io/PanSTARRS/
 BugReports: https://github.com/uskovgs/PanSTARRS/issues
-Imports: attempt, dplyr, glue, httr, jsonlite, magrittr, purrr, RCurl,
-        readr, rlang, stringr
-Suggests: celestial, FITSio, knitr, magicaxis, magick, rmarkdown
+Depends: R (>= 3.5)
+Imports: bit64, checkmate, curl, data.table, httr, jsonlite
+Suggests: celestial, dplyr, FITSio, knitr, magicaxis, magick,
+        rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
 Encoding: UTF-8
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 NeedsCompilation: no
-Packaged: 2022-02-03 16:42:48 UTC; uskov
-Author: Grigory Uskov [cre, aut]
+Packaged: 2023-04-11 18:10:12 UTC; uskov
+Author: Grigory Uskov [cre, aut] (<https://orcid.org/0000-0002-0274-1350>)
 Maintainer: Grigory Uskov <uskov.russia@gmail.com>
 Repository: CRAN
-Date/Publication: 2022-02-07 09:20:02 UTC
+Date/Publication: 2023-04-11 18:30:02 UTC

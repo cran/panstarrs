@@ -1,23 +1,24 @@
 <!-- badges: start -->
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+
+[![CRAN status](https://www.r-pkg.org/badges/version/panstarrs)](https://CRAN.R-project.org/package=panstarrs) [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+
 <!-- badges: end -->
-  
+
 # panstarrs
 
-<!-- badges: start -->
-<!-- badges: end -->
-
-The goal of panstarrs package is to access [PanSTARRS](https://panstarrs.stsci.edu/) data archive.
+The goal of panstarrs package is to access [PanSTARRS](https://outerspace.stsci.edu/display/PANSTARRS/) data archive.
 
 ## Installation
 
 You can install the released version of panstarrs with:
 
 ``` r
-devtools::install_github('uskovgs/PanSTARRS')
+# devtools::install_github('uskovgs/PanSTARRS')
+install.packages("panstarrs")
 ```
 
 ## Example
+
 ``` r
  library(panstarrs)
  library(magrittr)

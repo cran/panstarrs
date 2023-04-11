@@ -7,10 +7,11 @@
 checklegal(table, release)
 }
 \arguments{
-\item{table}{"mean", "stack", "detection"}
+\item{table}{"mean", "stack", "forced_mean", "detection"}
 
 \item{release}{"dr2", "dr1"}
 }
 \description{
 Checks if this combination of table and release is acceptable.
 }
+\keyword{internal}

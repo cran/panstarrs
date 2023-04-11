@@ -2,57 +2,85 @@
 #'
 #' Checks if this combination of table and release is acceptable.
 #'
-#' @param table "mean", "stack", "detection"
+#' @param table "mean", "stack", "forced_mean", "detection"
 #' @param release "dr2", "dr1"
 #'
+#' @keywords internal
 #'
 checklegal <- function(table, release) {
   releaselist <- c("dr1", "dr2")
 
+  checkmate::assert_choice(release, releaselist)
 
-  attempt::stop_if_not(release %in% releaselist,
-                       msg = glue::glue(
-                         "Bad value for release (must be one of",
-                         paste(releaselist, collapse = ", "),
-                         ")"
-                       )
-  )
   if (release == "dr1") {
     tablelist <- c("mean", "stack")
   } else {
-    tablelist <- c("mean", "stack", "detection")
+    tablelist <- c("mean", "stack", "forced_mean", "detection")
   }
-
-  attempt::stop_if_not(table %in% tablelist,
-                       msg = glue::glue("Bad value for table (for {release} must be one of {
-                                        paste(tablelist,  collapse = ', ')
-                     })")
-  )
+  checkmate::assert_choice(table, tablelist)
 }
+
+#' Get preloaded metadata
+#'
+#'
+#' @param table "mean", "stack", "detection"
+#' @param release "dr2", "dr1"
+#'
+#' @return A data frame
+#'
+#' @keywords internal
+#'
+get_metadata <- function(table, release) {
+  return(.meta[[paste0(table, "_", release)]])
+}
+
+#' Convert types.
+#'
+#' Helper function.
+#'
+#'
+#' @param dt data.table or data.frame
+#' @param cols which cols convert
+#' @param types "char", "long", "unsignedByte", "int", "short", "double", "float"
+#'
+#' @return a data frame with correct data types
+#'
+#' @keywords internal
+#'
+#'
+convert_types <- function(dt, cols, types) {
+
+  convert_function <- list(
+    "char" = as.character,
+    "long" = bit64::as.integer64,
+    "unsignedByte" = as.integer,
+    "int" = as.integer,
+    "short" = as.integer,
+    "double" = as.double,
+    "float" = as.double
+  )
+
+  dt[cols] <- lapply(seq_along(cols), function(i) convert_function[[types[i]]](dt[[i]]))
+
+  return(dt)
+}
+
 
 #' Metadata from PS1
 #'
 #' Return metadata for the specified catalog and table
 #'
-#' @param table "mean", "stack", or "detection"
+#' @param table "mean", "stack", "forced_mean" or "detection"
 #' @param release "dr1" or "dr2"(default)
 #'
 #' @return Returns data.frame with columns: name, type, description
 #' @export
 #'
-#' @importFrom glue glue
-#' @importFrom httr GET
-#' @importFrom httr content
-#' @importFrom httr stop_for_status
-#' @importFrom jsonlite fromJSON
-#' @importFrom dplyr select
-#' @importFrom rlang .data
-#'
 #' @examples
 #' \dontrun{
 #' ps1_metadata()
 #' }
-ps1_metadata <- function(table = c("mean", "stack", "detection"), release = c("dr2", "dr1")) {
+ps1_metadata <- function(table = "mean", release = "dr2") {
 
   table <- table[1]
   release <- release[1]
@@ -61,23 +89,44 @@ ps1_metadata <- function(table = c("mean", "stack", "detection"), release = c("d
 
   checklegal(table, release)
 
-  resp <- GET(url =  glue("{baseurl}/{release[1]}/{table[1]}/metadata"))
+  if (!curl::has_internet()) {
+    message("No internet connection.")
+    return(invisible(NULL))
+  }
 
-  stop_for_status(resp)
+  resp <- tryCatch(
+    httr::RETRY(
+      "GET",
+      paste(baseurl, release[1], table[1], "metadata", sep = "/"),
+      panstarrs_user_agent(),
+      times = 3,
+      pause_base = 1.3
+    ),
+    error = function(e) conditionMessage(e),
+    warning = function(w) conditionMessage(w)
+  )
 
+  if (! inherits(resp, "response")) {
+    message(resp)
+    return(invisible(NULL))
+  }
 
-  meta_info <- resp %>%
-    content(as = "text") %>%
-    fromJSON() %>%
-    select(.data$name, .data$type, .data$description)
+  # Then stop if status > 400
+  if (httr::http_error(resp)) {
+    httr::message_for_status(resp)
+    return(invisible(NULL))
+  }
 
-  return(meta_info)
+  meta_info <- jsonlite::fromJSON(
+      httr::content(resp, as = "text", encoding = "UTF-8")
+    )
+  return(meta_info[, c("name", "type", "description")])
 }
 
 
 #' Do a general search of the PS1 catalog (possibly without ra/dec/radius)
 #'
-#' @param table "mean", "stack", or "detection"
+#' @param table "mean", "stack", "detection" or "forced_mean"
 #' @param release "dr1" or "dr2"(default)
 #' @param columns list of column names to include (NULL means use defaults)
 #' @param verbose print info about request
@@ -99,7 +148,7 @@ ps1_metadata <- function(table = c("mean", "stack", "detection"), release = c("d
 #' objid = '190361393344112894',
 #' columns = c('objName', 'raMean', 'decMean', 'rMeanPSFMag'))
 #' }
-ps1_search <- function(table = c("mean", "stack", "detection"),
+ps1_search <- function(table = c("mean", "stack", "detection", "forced_mean"),
                        release = c("dr2", "dr1"),
                        columns = NULL,
                        verbose = FALSE,
@@ -107,62 +156,83 @@ ps1_search <- function(table = c("mean", "stack", "detection"),
 
   release <- release[1]
   tabel <- table[1]
-
-
-
-  baseurl = "https://catalogs.mast.stsci.edu/api/v0.1/panstarrs"
-
-  data <-  list(...)
-
-  attempt::stop_if(length(data) == 0,
-                   msg = "You must specify some parameters for search")
-
   checklegal(table, release)
 
-  # attempt::stop_if_not(format %in% c("csv","votable","json"),
-  #                      msg = "Bad value for format")
 
-  url <- glue::glue("{baseurl}/{release}/{table}.json")
+  data <-  list(...)
+  checkmate::assert_list(data, min.len = 1L, .var.name = "...")
 
+  baseurl <- "https://catalogs.mast.stsci.edu/api/v0.1/panstarrs"
+  url <- paste0(baseurl, "/", release, "/", table, ".json")
 
-  if(!is.null(columns)){
-    # check that column values are legal
-    # create a dictionary to speed this up
+  metadata <- get_metadata(table, release)
 
+  if (! is.null(columns)) {
 
-    cols_meta <- ps1_metadata(table,release)$name %>% tolower()
-
-    columns2 <- columns %>% tolower() %>% stringr::str_squish()
-
+    # Check that column values are legal
+    cols_meta <- tolower(metadata$name)
+    columns2 <- tolower(columns)
     badcols <- columns[which(!(columns2 %in% cols_meta))]
 
+    if (length(badcols) != 0L)
+      message(paste0("Some columns not found in table: ",
+                     paste(badcols, collapse = ", ")
+             )
+      )
 
-    attempt::message_if(length(badcols) != 0,
-                        msg = glue::glue("Some columns not found in table: {
-                                          paste(badcols, collapse = ', ')
-                         }"))
-
-    data['columns'] <- columns %>% jsonlite::toJSON()
-
-
+    data['columns'] <- jsonlite::toJSON(columns)
   }
 
-  resp <-  httr::GET(url, query = data)
+  if (!curl::has_internet()) {
+    message("No internet connection.")
+    return(invisible(NULL))
+  }
+
+  resp <- tryCatch(
+    httr::RETRY(
+      "GET",
+      url,
+      query = data,
+      panstarrs_user_agent(),
+      times = 3,
+      pause_base = 1.3
+    ),
+    error = function(e) conditionMessage(e),
+    warning = function(w) conditionMessage(w)
+  )
+
 
   if(verbose)
     print(resp)
 
-  httr::stop_for_status(resp)
+  if (! inherits(resp, "response")) {
+    message(resp)
+    return(invisible(NULL))
+  }
 
-  cont <- resp %>%
-    httr::content(as='text') %>%
-    jsonlite::fromJSON(simplifyVector = F)
+  # Then stop if status > 400
+  if (httr::http_error(resp)) {
+    httr::message_for_status(resp)
+    return(invisible(NULL))
+  }
 
-  json_colnames <- cont$info %>% purrr::map_chr(~.x$name)
-  json_df <- cont$data %>%
-    purrr::map_dfr(~purrr::set_names(.x, nm = json_colnames))
+  cont <- jsonlite::fromJSON(
+    txt = httr::content(resp, as = 'text', encoding = "UTF-8"),
+    simplifyVector = FALSE,
+    bigint_as_char = TRUE
+  )
 
-  return(json_df)
+
+  json_colnames <- vapply(cont$info, function(x) x$name, character(1L))
+  dt <- data.table::rbindlist(cont$data)
+  data.table::setnames(dt, json_colnames)
+
+  # convert bigint characters to int64
+  types <- metadata$type[json_colnames %in% metadata$name]
+  cols <- json_colnames[json_colnames %in% metadata$name]
+
+  dt <- convert_types(dt, cols, types)
+  return(dt)
 }
 
 #' Do a cone search of the PS1 catalog
@@ -170,7 +240,7 @@ ps1_search <- function(table = c("mean", "stack", "detection"),
 #' @param ra (degrees) J2000 Right Ascension
 #' @param dec (degrees) J2000 Declination
 #' @param r_arcmin (arcmins) Search radius (<= 30 arcmins)
-#' @param table "mean"(default), "stack", or "detection"
+#' @param table "mean"(default), "stack", "detection" or "forced_mean"
 #' @param release "dr1" or "dr2"(default)
 #' @param columns list of column names to include (NULL means use defaults)
 #' @param verbose print info about request
@@ -184,21 +254,25 @@ ps1_search <- function(table = c("mean", "stack", "detection"),
 #' ps1_cone(ra = 139.334,dec = 68.635,r_arcmin = 0.05, nDetections.gt = 1)
 #' }
 ps1_cone <- function(ra,
-                    dec,
-                    r_arcmin = 0.05,
-                    table = c("mean", "stack", "detection"),
-                    release = c("dr2", "dr1"),
-                    columns=NULL,
-                    verbose=FALSE,
-                    ...){
-  ps1_search(table=table[1],
-             release=release[1],
-             columns=columns,
-             verbose=verbose,
-             ra = ra,
-             dec = dec,
-             radius = r_arcmin/60.0)
+                     dec,
+                     r_arcmin = 0.05,
+                     table = c("mean", "stack", "detection", "forced_mean"),
+                     release = c("dr2", "dr1"),
+                     columns = NULL,
+                     verbose = FALSE,
+                     ...) {
 
+  validate_radec(ra, dec, .length = 1L)
+
+  ps1_search(
+    table = table[1],
+    release = release[1],
+    columns = columns,
+    verbose = verbose,
+    ra = ra,
+    dec = dec,
+    radius = r_arcmin / 60.0
+  )
 }
 
 
@@ -208,7 +282,7 @@ ps1_cone <- function(ra,
 #' @param ra (degrees) numeric vector of J2000 Right Ascension
 #' @param dec (degrees) numeric vector of J2000 Declination
 #' @param r_arcmin (arcmins) Search radius (<= 30 arcmins)
-#' @param table "mean"(default), "stack", or "detection"
+#' @param table "mean"(default), "stack", "detection", "forced_mean"
 #' @param release "dr1" or "dr2"(default)
 #' @param verbose print info about request
 #'
@@ -223,9 +297,9 @@ ps1_cone <- function(ra,
 ps1_crossmatch <- function(ra,
                            dec,
                            r_arcmin = 0.05,
-                           table = c("mean", "stack", "detection"),
+                           table = c("mean", "stack", "detection", "forced_mean"),
                            release = c("dr2", "dr1"),
-                           verbose = FALSE){
+                           verbose = FALSE) {
 
   base_url <- 'https://catalogs.mast.stsci.edu/api/v0.1/panstarrs'
 
@@ -233,37 +307,70 @@ ps1_crossmatch <- function(ra,
   release <- release[1]
 
   checklegal(table, release)
+  validate_radec(ra, dec)
+  url <- paste0(base_url, "/", release, "/", table, "/crossmatch/")
 
-  attempt::stop_if(length(ra) != length(dec),
-                   msg = glue::glue("Length of ra [{length(ra)}] is not equal to length of dec [{length(dec)}]"))
+  # API restriction
+  checkmate::assert_vector(ra, max.len = 5000L, min.len = 1L)
 
-  attempt::stop_if(length(ra) > 5000,
-                   msg = glue::glue("The length of the sources [{length(ra)}] is more tha 5000 items."))
+  sources_json <- jsonlite::toJSON(data.frame(ra = ra, dec = dec))
 
-  sources_json <- data.frame(ra = ra, dec = dec) %>%
-    jsonlite::toJSON()
+  data <- list(
+    targets = sources_json,
+    resolve = FALSE,
+    radius = r_arcmin/60,
+    ra_name = "ra",
+    dec_name = "dec"
+  )
 
-  resp <- httr::POST(
-    url = glue::glue('{base_url}/{release}/{table}/crossmatch/'),
-    query = list(
-      resolve = FALSE,
-      radius = r_arcmin/60,
-      ra_name = "ra",
-      dec_name = "dec",
-      # target_name = 'target',
-      targets = sources_json
-    ))
+  if (!curl::has_internet()) {
+    message("No internet connection.")
+    return(invisible(NULL))
+  }
 
-  httr::stop_for_status(resp)
+  resp <- tryCatch(
+    httr::RETRY(
+      "POST",
+      url,
+      query = data,
+      panstarrs_user_agent(),
+      times = 3,
+      pause_base = 1.3
+    ),
+    error = function(e) conditionMessage(e),
+    warning = function(w) conditionMessage(w)
+  )
 
   if(verbose)
     print(resp)
 
-  resp <- resp %>%
-    httr::content(as = 'text') %>%
-    jsonlite::fromJSON()
+  if (! inherits(resp, "response")) {
+    message(resp)
+    return(invisible(NULL))
+  }
 
-    dplyr::as_tibble(resp$data)
+  # Then stop if status > 400
+  if (httr::http_error(resp)) {
+    httr::message_for_status(resp)
+    return(invisible(NULL))
+  }
+
+  cont <- jsonlite::fromJSON(
+    httr::content(resp, as = 'text', encoding = "UTF-8"),
+    bigint_as_char = TRUE
+  )
+
+  metadata <- get_metadata(table, release)
+
+  dt <- data.table::as.data.table(cont$data)
+
+  ii <- which(colnames(dt) %in% metadata$name)
+  cols <- colnames(dt)[ii]
+  types <- metadata$type[which(metadata$name %in% cols)]
+  dt <- convert_types(dt, cols, types)
+  data.table::setorder(dt, "_searchID_")
+
+  return(dt)
 }
 
 #' Get the RA and Dec for objects from PanSTARRS catalog.
@@ -271,7 +378,6 @@ ps1_crossmatch <- function(ra,
 #' Only works for "north" objects with decl > -30. For all objects see function `ps1_mast_resolve`.
 #'
 #' @param target_names character vector of target names (see example)
-#' @param full_table show full cross-matched table or only main columns.
 #' @param verbose print info about request
 #'
 #' @return data.frame
@@ -281,78 +387,108 @@ ps1_crossmatch <- function(ra,
 #' \dontrun{
 #' ps1_resolve(c('Andromeda', "SN 2005D", 'Antennae', 'ANTENNAE'))
 #' }
-ps1_resolve <- function(target_names,
-                        full_table = FALSE,
-                        verbose = FALSE){
+ps1_resolve <- function(target_names, verbose = FALSE) {
 
   table <- "mean"
   release <- "dr2"
   base_url <- 'https://catalogs.mast.stsci.edu/api/v0.1/panstarrs'
 
   checklegal(table, release)
+  url <- paste0(base_url, "/", release, "/", table, "/crossmatch/")
+
+
+  # API restriction
+  checkmate::assert_vector(target_names, max.len = 5000L, min.len = 1L)
+
   # Create json list
+  sources_df <- data.frame(
+    target = target_names,
+    search_id = 0:(length(target_names)-1)
+  )
 
-  attempt::stop_if(length(target_names) > 500,
-                   msg = glue::glue("The length of the `target_names`
-                                    [{length(target_names)}] is more than 5000 items."))
+  sources_json <- jsonlite::toJSON(subset(sources_df, select = "target"))
 
+  data <- list(
+    resolve = TRUE,
+    target_name = "target",
+    targets = sources_json
+  )
 
-  sources_df <- data.frame(target = target_names,
-                           search_id = 0:(length(target_names)-1))
+  if (!curl::has_internet()) {
+    message("No internet connection.")
+    return(invisible(NULL))
+  }
 
-  sources_json <- sources_df %>% select(.data$target) %>% jsonlite::toJSON()
-
-  response <- httr::POST(
-    url = glue::glue('{base_url}/{release}/{table}/crossmatch/'),
-    query = list(
-      resolve = TRUE,
-      target_name = 'target',
-      targets = sources_json
-    ))
-
-  httr::stop_for_status(response)
+  resp <- tryCatch(
+    httr::RETRY(
+      "POST",
+      url,
+      query = data,
+      panstarrs_user_agent(),
+      times = 3,
+      pause_base = 1.3
+    ),
+    error = function(e) conditionMessage(e),
+    warning = function(w) conditionMessage(w)
+  )
 
   if(verbose)
-    print(response)
+    print(resp)
 
-  df <- response %>%
-    httr::content(as = 'text') %>%
-    jsonlite::fromJSON()
+  if (! inherits(resp, "response")) {
+    message(resp)
+    return(invisible(NULL))
+  }
 
-  df <- df$data %>%
-    dplyr::rename(ra=.data$`_ra_`, dec=.data$`_dec_`) %>%
-    dplyr::left_join(sources_df, by=c('_searchID_'='search_id')) %>%
-    dplyr::select(.data$target, .data$everything()) %>%
-    dplyr::select(.data$target, .data$ra, .data$dec) %>%
-    dplyr::group_by(.data$target) %>%
-    dplyr::slice(1) %>%
-    dplyr::ungroup()
-  df
+  # Then stop if status > 400
+  if (httr::http_error(resp)) {
+    httr::message_for_status(resp)
+    return(invisible(NULL))
+  }
+
+  cont <- jsonlite::fromJSON(
+    httr::content(resp, as = 'text', encoding = "UTF-8"),
+    bigint_as_char = TRUE
+  )
+
+  dt <- data.table::as.data.table(cont$data)
+  data.table::setnames(dt, c("_ra_", "_dec_", "_searchID_"), c("ra", "dec", "search_id"))
+  dt <- data.table::merge.data.table(dt, sources_df, by = 'search_id')
+
+  return(dt)
 }
 
 
 #' Perform a MAST query.
 #'
-#' @param request (list): The MAST request json object
+#' @param request The MAST request json object
 #'
 #' @return Returns response
 #'
+#' @keywords internal
+#'
 ps1_mast_query <- function(request){
-  # """Perform a MAST query.
-  #
-  # Parameters
-  # ----------
-  # request (dictionary): The MAST request json object
-  #
-  # Returns head,content where head is the response HTTP headers, and content is the returned data
-  # """
 
-  # Encoding the request as a json string
-  requestString <- request %>% jsonlite::toJSON(auto_unbox = TRUE)
+  requestString <- jsonlite::toJSON(request, auto_unbox = TRUE)
 
-  resp <- httr::GET(url = "https://mast.stsci.edu/api/v0/invoke",
-            query = list(request=requestString),
-            encode='form')
+  if (!curl::has_internet()) {
+    message("No internet connection.")
+    return(invisible(NULL))
+  }
+
+  resp <- tryCatch(
+    httr::RETRY(
+      "GET",
+      url = "https://mast.stsci.edu/api/v0/invoke",
+      query = list(request = requestString),
+      encode = "form",
+      panstarrs_user_agent(),
+      times = 3,
+      pause_base = 1.3
+    ),
+    error = function(e) conditionMessage(e),
+    warning = function(w) conditionMessage(w)
+  )
 
   return(resp)
 }
@@ -377,21 +513,28 @@ ps1_mast_resolve <- function(name) {
     )
   )
 
-  mastquery <- ps1_mast_query(resolverRequest)
-  httr::stop_for_status(mastquery)
+  resp <- ps1_mast_query(resolverRequest)
 
-  # The resolver returns a variety of information about the resolved object,
-  # however for our purposes all we need are the RA and Dec
+  if (! inherits(resp, "response")) {
+    message(resp)
+    return(invisible(NULL))
+  }
 
+  # Then stop if status > 400
+  if (httr::http_error(resp)) {
+    httr::message_for_status(resp)
+    return(invisible(NULL))
+  }
 
-  resolvedObject <- httr::content(mastquery)
+  resolvedObject <- httr::content(resp)
 
-  coords <- attempt::try_catch(
+  tryCatch(
     resolvedObject$resolvedCoordinate[[1]][c("ra", "decl")],
-    .e = ~message(glue::glue("Unknown object '{name}'"))
+    # error = function(e) conditionMessage(e)
+    error =  function(e) message(paste0("Object '", name, "' not found"))
   )
 
-  return(coords)
 }
+
 
 
