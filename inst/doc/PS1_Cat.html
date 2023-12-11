@@ -366,10 +366,10 @@ source.</h2>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>coords <span class="ot">&lt;-</span> <span class="fu">ps1_mast_resolve</span>(<span class="st">&#39;KQ Uma&#39;</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>coords</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; $ra</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; [1] 139.3343</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; [1] 139.3345</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; $decl</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; [1] 68.63514</span></span></code></pre></div>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; [1] 68.63509</span></span></code></pre></div>
 </div>
 <div id="search-sources-in-the-circle-around-the-kq-position" class="section level3">
 <h3>2. Search sources in the circle around the KQ position</h3>
@@ -380,22 +380,19 @@ source.</h2>
 <span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="at">table =</span> <span class="st">&#39;mean&#39;</span>,</span>
 <span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">release =</span> <span class="st">&#39;dr2&#39;</span></span>
 <span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>)</span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; Warning in convert_function[[types[i]]](dt[[i]]): NAs introduced by coercion to</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; integer range</span></span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; Warning in convert_function[[types[i]]](dt[[i]]): NAs introduced by coercion to</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; integer range</span></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co"># tidyverse approach</span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>df_cone <span class="sc">|&gt;</span></span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(dplyr<span class="sc">::</span><span class="fu">matches</span>(<span class="st">&#39;[grizy]MeanPSFMag$&#39;</span>))</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt;    gMeanPSFMag rMeanPSFMag iMeanPSFMag zMeanPSFMag yMeanPSFMag</span></span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt; 1:    0.999487    0.999573    0.999369    0.999257    0.999801</span></span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co"># or if you prefer data.table approach</span></span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>df_cone[, .SD, .SDcols <span class="ot">=</span> <span class="fu">grepl</span>(<span class="st">&#39;[grizy]MeanPSFMag$&#39;</span>, <span class="fu">names</span>(df_cone))]</span>
-<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;    gMeanPSFMag rMeanPSFMag iMeanPSFMag zMeanPSFMag yMeanPSFMag</span></span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt; 1:    0.999487    0.999573    0.999369    0.999257    0.999801</span></span></code></pre></div>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co"># tidyverse approach</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>df_cone <span class="sc">|&gt;</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(dplyr<span class="sc">::</span><span class="fu">matches</span>(<span class="st">&#39;[grizy]MeanPSFMag$&#39;</span>))</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;    gMeanPSFMag rMeanPSFMag iMeanPSFMag zMeanPSFMag yMeanPSFMag</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt;          &lt;num&gt;       &lt;num&gt;       &lt;num&gt;       &lt;num&gt;       &lt;num&gt;</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; 1:     15.0402      14.553     14.2109     14.2814     14.3041</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co"># or if you prefer data.table approach</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>df_cone[, .SD, .SDcols <span class="ot">=</span> <span class="fu">grepl</span>(<span class="st">&#39;[grizy]MeanPSFMag$&#39;</span>, <span class="fu">names</span>(df_cone))]</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt;    gMeanPSFMag rMeanPSFMag iMeanPSFMag zMeanPSFMag yMeanPSFMag</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt;          &lt;num&gt;       &lt;num&gt;       &lt;num&gt;       &lt;num&gt;       &lt;num&gt;</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; 1:     15.0402      14.553     14.2109     14.2814     14.3041</span></span></code></pre></div>
 </div>
 </div>
 </div>
