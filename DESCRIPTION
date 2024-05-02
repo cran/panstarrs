@@ -1,6 +1,6 @@
 Package: panstarrs
 Title: Interface to the Pan-STARRS API
-Version: 0.2.1
+Version: 0.2.2
 Authors@R: 
     person("Grigory", "Uskov", , "uskov.russia@gmail.com", role = c("cre", "aut"),
            comment = c(ORCID = "0000-0002-0274-1350"))
@@ -20,10 +20,10 @@ Suggests: dplyr, knitr, magick, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 NeedsCompilation: no
-Packaged: 2023-12-11 20:07:40 UTC; uskov
+Packaged: 2024-05-02 13:43:54 UTC; uskov
 Author: Grigory Uskov [cre, aut] (<https://orcid.org/0000-0002-0274-1350>)
 Maintainer: Grigory Uskov <uskov.russia@gmail.com>
 Repository: CRAN
-Date/Publication: 2023-12-11 22:30:03 UTC
+Date/Publication: 2024-05-02 14:02:37 UTC
